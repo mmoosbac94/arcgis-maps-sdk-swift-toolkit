@@ -74,7 +74,7 @@ struct FieldsPopupElementView: View {
         var body: some View {
             switch detector.detect(in: formattedValue) {
                 
-            case .url(let url):
+            case .fullURL(let url):
                 Link(destination: url) {
                     Text(
                         "View",
@@ -88,23 +88,23 @@ struct FieldsPopupElementView: View {
                 .buttonStyle(.borderless)
 #endif
                 
-            case .phones(let phones):
-                Text(phoneAttributedText(phones: phones))
+            case .inlineLinks(let links):
+                Text(attributedText(links: links))
                 
             case .none:
                 Text(formattedValue)
             }
         }
         
-        private func phoneAttributedText(
-            phones: [(url: URL, range: NSRange)]
+        private func attributedText(
+            links: [(url: URL, range: NSRange)]
         ) -> AttributedString {
             
             var attributed = AttributedString(formattedValue)
             
-            for phone in phones {
-                if let range = Range(phone.range, in: attributed) {
-                    attributed[range].link = phone.url
+            for link in links {
+                if let range = Range(link.range, in: attributed) {
+                    attributed[range].link = link.url
                     attributed[range].foregroundColor = .blue
                     attributed[range].underlineStyle = .single
                 }
@@ -113,6 +113,7 @@ struct FieldsPopupElementView: View {
             return attributed
         }
     }
+    
 }
 
 /// A convenience type for displaying labels and values in a grid.
@@ -136,38 +137,48 @@ private extension FieldsPopupElement {
 private struct PopupValueDetector {
     
     enum DetectedValue {
-        case phones([(url: URL, range: NSRange)])
-        case url(URL)
+        case fullURL(URL)
+        case inlineLinks([(url: URL, range: NSRange)])
     }
     
     func detect(in text: String) -> DetectedValue? {
-        /// URL detection
+        
+        /// Full-string URL
         if text.lowercased().starts(with: "http"),
            let url = URL(string: text) {
-            return .url(url)
+            return .fullURL(url)
         }
         
-        /// Phone number detection
-        let types: NSTextCheckingResult.CheckingType = [.phoneNumber]
+        let types: NSTextCheckingResult.CheckingType = [.phoneNumber, .link]
         guard let detector = try? NSDataDetector(types: types.rawValue) else {
             return nil
         }
         
-        let fullRange = NSRange(text.startIndex..., in: text)
-        let matches = detector.matches(in: text, options: [], range: fullRange)
+        let range = NSRange(text.startIndex..., in: text)
+        let matches = detector.matches(in: text, options: [], range: range)
         
-        let phones: [(URL, NSRange)] = matches.compactMap { match in
-            guard let phone = match.phoneNumber else { return nil }
+        let links: [(URL, NSRange)] = matches.compactMap { match in
             
-            let cleaned = phone
-                .components(separatedBy: CharacterSet.decimalDigits.inverted)
-                .joined()
+            /// http(s) or mailto
+            if let url = match.url {
+                return (url, match.range)
+            }
             
-            guard let url = URL(string: "tel:\(cleaned)") else { return nil }
-            return (url, match.range)
+            /// phone → tel:
+            if let phone = match.phoneNumber {
+                let cleaned = phone
+                    .components(separatedBy: CharacterSet.decimalDigits.inverted)
+                    .joined()
+                
+                return URL(string: "tel:\(cleaned)").map {
+                    ($0, match.range)
+                }
+            }
+            
+            return nil
         }
         
-        return phones.isEmpty ? nil : .phones(phones)
+        return links.isEmpty ? nil : .inlineLinks(links)
     }
     
 }
