@@ -130,17 +130,15 @@ extension HTMLTextView.Coordinator: WKNavigationDelegate {
     ) async -> WKNavigationActionPolicy {
         if navigationAction.navigationType == .linkActivated,
            let url = navigationAction.request.url,
-           (url.isHTTP || url.isHTTPS) {
+           url.isTelOrMailTo || url.isHTTP || url.isHTTPS
+        {
             DispatchQueue.main.async {
                 UIApplication.shared.open(url)
             }
             return .cancel
         }
-        else {
-            return .allow
-        }
+        return .allow
     }
-    
     // `WKNavigationDelegate` method invoked when a main frame navigation completes. This is
     // where the height calculation happens.
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
@@ -149,11 +147,9 @@ extension HTMLTextView.Coordinator: WKNavigationDelegate {
                   readyState == "complete" else {
                 return
             }
-            
             guard let scrollHeight = try? await webView.evaluateJavaScript("document.body.scrollHeight") as? CGFloat else {
                 return
             }
-            
             onHeightChanged(scrollHeight)
         }
     }
@@ -168,5 +164,11 @@ private extension URL {
     /// A Boolean value indicating whether the scheme is HTTPS (case-insensitive).
     var isHTTPS: Bool {
         scheme?.caseInsensitiveCompare("https") == .orderedSame
+    }
+    
+    /// A Boolean value indicating whether the scheme is tel: or mailto: (case-insensitive).
+    var isTelOrMailTo: Bool {
+        guard let scheme = scheme?.lowercased() else { return false }
+        return scheme == "tel" || scheme == "mailto"
     }
 }
