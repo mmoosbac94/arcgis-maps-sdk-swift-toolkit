@@ -43,6 +43,7 @@ struct TextPopupElementView: View {
         }
     }
     
+    // Duplicate code: code also exists in FieldsPopupElementView!
     private struct FormattedValueText: View {
         
         let formattedValue: String

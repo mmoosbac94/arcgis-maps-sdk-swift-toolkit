@@ -136,8 +136,9 @@ extension HTMLTextView.Coordinator: WKNavigationDelegate {
                 UIApplication.shared.open(url)
             }
             return .cancel
+        } else {
+            return .allow
         }
-        return .allow
     }
     // `WKNavigationDelegate` method invoked when a main frame navigation completes. This is
     // where the height calculation happens.
@@ -147,9 +148,11 @@ extension HTMLTextView.Coordinator: WKNavigationDelegate {
                   readyState == "complete" else {
                 return
             }
+            
             guard let scrollHeight = try? await webView.evaluateJavaScript("document.body.scrollHeight") as? CGFloat else {
                 return
             }
+            
             onHeightChanged(scrollHeight)
         }
     }
