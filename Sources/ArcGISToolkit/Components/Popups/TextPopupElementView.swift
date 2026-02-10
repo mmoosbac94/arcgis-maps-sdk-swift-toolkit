@@ -39,7 +39,55 @@ struct TextPopupElementView: View {
                 }
             }
         } else {
-            TextDetectionView(text: popupElement.text)
+            FormattedValueText(formattedValue: popupElement.text)
+        }
+    }
+    
+    private struct FormattedValueText: View {
+        
+        let formattedValue: String
+        private let detector = PopupValueDetector()
+        
+        var body: some View {
+            switch detector.detect(in: formattedValue) {
+                
+            case .fullURL(let url):
+                Link(destination: url) {
+                    Text(
+                        "View",
+                        bundle: .toolkitModule,
+                        comment: "E.g. Open a hyperlink."
+                    )
+                }
+#if os(visionOS)
+                .buttonStyle(.bordered)
+#else
+                .buttonStyle(.borderless)
+#endif
+                
+            case .inlineLinks(let links):
+                Text(attributedText(links: links))
+                
+            case .none:
+                Text(formattedValue)
+            }
+        }
+        
+        private func attributedText(
+            links: [(url: URL, range: NSRange)]
+        ) -> AttributedString {
+            
+            var attributed = AttributedString(formattedValue)
+            
+            for link in links {
+                if let range = Range(link.range, in: attributed) {
+                    attributed[range].link = link.url
+                    attributed[range].foregroundColor = .blue
+                    attributed[range].underlineStyle = .single
+                }
+            }
+            
+            return attributed
         }
     }
 }
