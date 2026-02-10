@@ -136,7 +136,8 @@ extension HTMLTextView.Coordinator: WKNavigationDelegate {
                 UIApplication.shared.open(url)
             }
             return .cancel
-        } else {
+        }
+        else {
             return .allow
         }
     }
