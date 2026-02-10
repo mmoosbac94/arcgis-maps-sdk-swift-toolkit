@@ -58,59 +58,11 @@ struct FieldsPopupElementView: View {
                 Text(field.label)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
-                FormattedValueText(formattedValue: field.formattedValue)
+                TextDetectionView(text: field.formattedValue)
                     .padding([.bottom], -1)
             }
             .background(Color.clear)
             .frame(maxWidth: .infinity, alignment: .leading)
-        }
-    }
-    
-    private struct FormattedValueText: View {
-        
-        let formattedValue: String
-        private let detector = PopupValueDetector()
-        
-        var body: some View {
-            switch detector.detect(in: formattedValue) {
-                
-            case .fullURL(let url):
-                Link(destination: url) {
-                    Text(
-                        "View",
-                        bundle: .toolkitModule,
-                        comment: "E.g. Open a hyperlink."
-                    )
-                }
-#if os(visionOS)
-                .buttonStyle(.bordered)
-#else
-                .buttonStyle(.borderless)
-#endif
-                
-            case .inlineLinks(let links):
-                Text(attributedText(links: links))
-                
-            case .none:
-                Text(formattedValue)
-            }
-        }
-        
-        private func attributedText(
-            links: [(url: URL, range: NSRange)]
-        ) -> AttributedString {
-            
-            var attributed = AttributedString(formattedValue)
-            
-            for link in links {
-                if let range = Range(link.range, in: attributed) {
-                    attributed[range].link = link.url
-                    attributed[range].foregroundColor = .blue
-                    attributed[range].underlineStyle = .single
-                }
-            }
-            
-            return attributed
         }
     }
     
@@ -132,53 +84,4 @@ private extension FieldsPopupElement {
             comment: "A label in reference to fields in a set of data contained in a popup."
         ) : title
     }
-}
-
-private struct PopupValueDetector {
-    
-    enum DetectedValue {
-        case fullURL(URL)
-        case inlineLinks([(url: URL, range: NSRange)])
-    }
-    
-    func detect(in text: String) -> DetectedValue? {
-        
-        /// Full-string URL
-        if text.lowercased().starts(with: "http"),
-           let url = URL(string: text) {
-            return .fullURL(url)
-        }
-        
-        let types: NSTextCheckingResult.CheckingType = [.phoneNumber, .link]
-        guard let detector = try? NSDataDetector(types: types.rawValue) else {
-            return nil
-        }
-        
-        let range = NSRange(text.startIndex..., in: text)
-        let matches = detector.matches(in: text, options: [], range: range)
-        
-        let links: [(URL, NSRange)] = matches.compactMap { match in
-            
-            /// http(s) or mailto
-            if let url = match.url {
-                return (url, match.range)
-            }
-            
-            /// phone → tel:
-            if let phone = match.phoneNumber {
-                let cleaned = phone
-                    .components(separatedBy: CharacterSet.decimalDigits.inverted)
-                    .joined()
-                
-                return URL(string: "tel:\(cleaned)").map {
-                    ($0, match.range)
-                }
-            }
-            
-            return nil
-        }
-        
-        return links.isEmpty ? nil : .inlineLinks(links)
-    }
-    
 }

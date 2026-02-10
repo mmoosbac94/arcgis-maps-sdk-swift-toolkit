@@ -15,6 +15,11 @@
 import SwiftUI
 import ArcGIS
 
+func isHTML(_ string: String) -> Bool {
+    let pattern = "<([A-Za-z][A-Za-z0-9]*)\\b[^>]*>(.*?)</\\1>"
+    return string.range(of: pattern, options: .regularExpression) != nil
+}
+
 /// A view displaying a `TextPopupElement`.
 struct TextPopupElementView: View {
     /// The `PopupElement` to display.
@@ -24,7 +29,7 @@ struct TextPopupElementView: View {
     @State private var webViewHeight: CGFloat?
     
     var body: some View {
-        if !popupElement.text.isEmpty {
+        if isHTML(popupElement.text) {
             ZStack {
                 HTMLTextView(html: popupElement.text, height: $webViewHeight)
                     .frame(height: webViewHeight ?? .zero)
@@ -33,6 +38,8 @@ struct TextPopupElementView: View {
                     ProgressView()
                 }
             }
+        } else {
+            TextDetectionView(text: popupElement.text)
         }
     }
 }
