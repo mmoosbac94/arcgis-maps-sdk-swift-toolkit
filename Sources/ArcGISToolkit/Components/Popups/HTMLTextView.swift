@@ -141,6 +141,7 @@ extension HTMLTextView.Coordinator: WKNavigationDelegate {
             return .allow
         }
     }
+    
     // `WKNavigationDelegate` method invoked when a main frame navigation completes. This is
     // where the height calculation happens.
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
