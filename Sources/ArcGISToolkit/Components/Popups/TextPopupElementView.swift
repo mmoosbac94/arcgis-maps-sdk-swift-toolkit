@@ -43,7 +43,7 @@ struct TextPopupElementView: View {
         }
     }
     
-    // Duplicate code: view is also in FieldsPopupElementView!
+    // View is also in FieldsPopupElementView!
     private struct FormattedValueText: View {
         
         let formattedValue: String
@@ -67,28 +67,11 @@ struct TextPopupElementView: View {
 #endif
                 
             case .inlineLinks(let links):
-                Text(attributedText(links: links))
+                Text(attributedText(formattedValue: formattedValue, links: links))
                 
             case .none:
                 Text(formattedValue)
             }
-        }
-        
-        private func attributedText(
-            links: [(url: URL, range: NSRange)]
-        ) -> AttributedString {
-            
-            var attributed = AttributedString(formattedValue)
-            
-            for link in links {
-                if let range = Range(link.range, in: attributed) {
-                    attributed[range].link = link.url
-                    attributed[range].foregroundColor = .blue
-                    attributed[range].underlineStyle = .single
-                }
-            }
-            
-            return attributed
         }
     }
 }
