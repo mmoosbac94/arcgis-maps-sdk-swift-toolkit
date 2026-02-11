@@ -130,7 +130,8 @@ extension HTMLTextView.Coordinator: WKNavigationDelegate {
     ) async -> WKNavigationActionPolicy {
         if navigationAction.navigationType == .linkActivated,
            let url = navigationAction.request.url,
-           (url.isHTTP || url.isHTTPS) {
+           url.isTelOrMailTo || url.isHTTP || url.isHTTPS
+        {
             DispatchQueue.main.async {
                 UIApplication.shared.open(url)
             }
@@ -168,5 +169,11 @@ private extension URL {
     /// A Boolean value indicating whether the scheme is HTTPS (case-insensitive).
     var isHTTPS: Bool {
         scheme?.caseInsensitiveCompare("https") == .orderedSame
+    }
+    
+    /// A Boolean value indicating whether the scheme is tel: or mailto: (case-insensitive).
+    var isTelOrMailTo: Bool {
+        guard let scheme = scheme?.lowercased() else { return false }
+        return scheme == "tel" || scheme == "mailto"
     }
 }

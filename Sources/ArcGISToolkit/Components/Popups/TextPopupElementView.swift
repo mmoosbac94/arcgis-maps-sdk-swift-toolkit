@@ -15,6 +15,11 @@
 import SwiftUI
 import ArcGIS
 
+func isHTML(_ string: String) -> Bool {
+    let pattern = "<([A-Za-z][A-Za-z0-9]*)\\b[^>]*>(.*?)</\\1>"
+    return string.range(of: pattern, options: .regularExpression) != nil
+}
+
 /// A view displaying a `TextPopupElement`.
 struct TextPopupElementView: View {
     /// The `PopupElement` to display.
@@ -24,7 +29,7 @@ struct TextPopupElementView: View {
     @State private var webViewHeight: CGFloat?
     
     var body: some View {
-        if !popupElement.text.isEmpty {
+        if isHTML(popupElement.text) {
             ZStack {
                 HTMLTextView(html: popupElement.text, height: $webViewHeight)
                     .frame(height: webViewHeight ?? .zero)
@@ -32,6 +37,41 @@ struct TextPopupElementView: View {
                     // Show `ProgressView` until `HTMLTextView` has set the height.
                     ProgressView()
                 }
+            }
+        } else {
+            FormattedValueText(formattedValue: popupElement.text)
+                .copyContextMenu(popupElement.text)
+        }
+    }
+    
+    // View is also in FieldsPopupElementView!
+    private struct FormattedValueText: View {
+        
+        let formattedValue: String
+        private let detector = PopupValueDetector()
+        
+        var body: some View {
+            switch detector.detect(in: formattedValue) {
+                
+            case .fullURL(let url):
+                Link(destination: url) {
+                    Text(
+                        "View",
+                        bundle: .toolkitModule,
+                        comment: "E.g. Open a hyperlink."
+                    )
+                }
+#if os(visionOS)
+                .buttonStyle(.bordered)
+#else
+                .buttonStyle(.borderless)
+#endif
+                
+            case .inlineLinks(let links):
+                Text(attributedText(formattedValue: formattedValue, links: links))
+                
+            case .none:
+                Text(formattedValue)
             }
         }
     }
