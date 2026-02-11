@@ -40,6 +40,7 @@ struct TextPopupElementView: View {
             }
         } else {
             FormattedValueText(formattedValue: popupElement.text)
+                .copyContextMenu(popupElement.text)
         }
     }
     

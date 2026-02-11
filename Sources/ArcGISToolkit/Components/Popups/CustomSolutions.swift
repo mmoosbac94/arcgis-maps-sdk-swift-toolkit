@@ -1,5 +1,5 @@
 //
-//  PopupValueDetector.swift
+//  CustomSolutions.swift
 //  arcgis-maps-sdk-swift-toolkit
 //
 //  Created by Tim Schaal on 10.02.26.
@@ -74,3 +74,26 @@ func attributedText(
     
     return attributed
 }
+
+extension View {
+    func copyContextMenu(_ string: String) -> some View {
+        self.contextMenu {
+            Button("Kopieren") {
+                Pasteboard.copy(string)
+            }
+        }
+    }
+}
+
+enum Pasteboard {
+    static func copy(_ string: String) {
+#if os(iOS) || os(tvOS) || os(visionOS)
+        UIPasteboard.general.string = string
+#elseif os(macOS)
+        let pb = NSPasteboard.general
+        pb.clearContents()
+        pb.setString(string, forType: .string)
+#endif
+    }
+}
+

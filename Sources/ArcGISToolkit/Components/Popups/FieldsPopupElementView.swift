@@ -118,25 +118,3 @@ private extension FieldsPopupElement {
         ) : title
     }
 }
-
-private extension View {
-    func copyContextMenu(_ string: String) -> some View {
-        self.contextMenu {
-            Button("Kopieren") {
-                Pasteboard.copy(string)
-            }
-        }
-    }
-}
-
-enum Pasteboard {
-    static func copy(_ string: String) {
-#if os(iOS) || os(tvOS) || os(visionOS)
-        UIPasteboard.general.string = string
-#elseif os(macOS)
-        let pb = NSPasteboard.general
-        pb.clearContents()
-        pb.setString(string, forType: .string)
-#endif
-    }
-}
