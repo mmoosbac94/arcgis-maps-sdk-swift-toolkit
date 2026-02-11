@@ -60,6 +60,8 @@ struct FieldsPopupElementView: View {
                     .foregroundStyle(.secondary)
                 FormattedValueText(formattedValue: field.formattedValue)
                     .padding([.bottom], -1)
+                    .copyContextMenu(field.formattedValue)
+
             }
             .background(Color.clear)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -114,5 +116,27 @@ private extension FieldsPopupElement {
             bundle: .toolkitModule,
             comment: "A label in reference to fields in a set of data contained in a popup."
         ) : title
+    }
+}
+
+private extension View {
+    func copyContextMenu(_ string: String) -> some View {
+        self.contextMenu {
+            Button("Kopieren") {
+                Pasteboard.copy(string)
+            }
+        }
+    }
+}
+
+enum Pasteboard {
+    static func copy(_ string: String) {
+#if os(iOS) || os(tvOS) || os(visionOS)
+        UIPasteboard.general.string = string
+#elseif os(macOS)
+        let pb = NSPasteboard.general
+        pb.clearContents()
+        pb.setString(string, forType: .string)
+#endif
     }
 }
