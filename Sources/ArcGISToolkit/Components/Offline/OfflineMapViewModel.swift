@@ -121,12 +121,15 @@ class OfflineMapViewModel: ObservableObject {
     }
     
     /// Loads the preplanned and on-demand models.
-    func loadModels() async {
+    func loadModels(isOfflineAuthenticated: Bool = false) async {
         isLoadingModels = true
         defer { isLoadingModels = false }
         
+        if !isOfflineAuthenticated {
+            try? await onlineMap.retryLoad()
+        }
+        
         // Determine if offline is disabled for the map.
-        try? await onlineMap.retryLoad()
         mapIsOfflineDisabled = onlineMap.loadStatus == .loaded && onlineMap.offlineSettings == nil
         guard !mapIsOfflineDisabled else { return }
         
@@ -134,7 +137,7 @@ class OfflineMapViewModel: ObservableObject {
         
         switch mode {
         case .preplanned:
-            await loadPreplannedMapModels()
+            await loadPreplannedMapModels(isOfflineAuthenticated: isOfflineAuthenticated)
         case .onDemand:
             await loadOnDemandMapModels()
         case .noInternetAvailable, .ambiguous:
@@ -147,7 +150,7 @@ class OfflineMapViewModel: ObservableObject {
             precondition(mode == .ambiguous || mode == .noInternetAvailable)
             
             // Start by trying to load preplanned map models.
-            await loadPreplannedMapModels()
+            await loadPreplannedMapModels(isOfflineAuthenticated: isOfflineAuthenticated)
             
             if hasAnyPreplannedMapAreas {
                 // If there are any preplanned map areas, set mode to preplanned.
@@ -180,14 +183,28 @@ class OfflineMapViewModel: ObservableObject {
     }
     
     /// Loads the preplanned map models.
-    private func loadPreplannedMapModels() async {
-        let models = await PreplannedMapModel.loadPreplannedMapModels(
-            offlineMapTask: offlineMapTask,
-            portalItemID: portalItemID,
-            onRemoveDownload: onRemoveDownloadOfPreplannedArea
-        )
-        preplannedMapModels = models.result
-        isShowingOnlyOfflineModels = models.onlyOfflineModelsAreAvailable
+    private func loadPreplannedMapModels(isOfflineAuthenticated: Bool) async {
+        var models: PreplannedModels
+        var preplannedMapModels: [PreplannedMapModel]
+        if isOfflineAuthenticated {
+            let models = await PreplannedMapModel.loadOfflinePreplannedMapModels(
+                offlineMapTask: offlineMapTask,
+                portalItemID: portalItemID,
+                onRemoveDownload: onRemoveDownloadOfPreplannedArea
+            )
+            
+            self.preplannedMapModels = .success(models)
+            self.isShowingOnlyOfflineModels = true
+        } else {
+            let models = await PreplannedMapModel.loadPreplannedMapModels(
+                offlineMapTask: offlineMapTask,
+                portalItemID: portalItemID,
+                onRemoveDownload: onRemoveDownloadOfPreplannedArea
+            )
+
+            self.preplannedMapModels = models.result
+            self.isShowingOnlyOfflineModels = models.onlyOfflineModelsAreAvailable
+        }
     }
     
     /// The function called when a downloaded on-demand map area is removed.

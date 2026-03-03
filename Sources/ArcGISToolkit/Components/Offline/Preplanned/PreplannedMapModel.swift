@@ -416,7 +416,7 @@ extension PreplannedMapModel {
     
     /// Loads the offline preplanned map models with information from the downloaded mobile map
     /// packages for the online map.
-    private static func loadOfflinePreplannedMapModels(
+     static func loadOfflinePreplannedMapModels(
         offlineMapTask: OfflineMapTask,
         portalItemID: Item.ID,
         onRemoveDownload: @escaping (PreplannedMapModel) -> Void

@@ -99,6 +99,8 @@ public struct OfflineMapAreasView: View {
         doneVisibility == .automatic || doneVisibility == .visible
     }
     
+    private var isOfflineAuthenticated: Bool?
+    
     /// The portal item for the web map to be taken offline.
     private var portalItem: PortalItem {
         // Safe to force cast because of the precondition in the initializer.
@@ -130,12 +132,13 @@ public struct OfflineMapAreasView: View {
     ///   - offlineMapInfo: The offline map info for which to create the view.
     ///   - selection: A binding to the currently selected offline map.
     /// - SeeAlso: ``OfflineManager/offlineMapInfos``.
-    public init(offlineMapInfo: OfflineMapInfo, selection: Binding<Map?>) {
+    public init(offlineMapInfo: OfflineMapInfo, isOfflineAuthenticated: Bool, selection: Binding<Map?>) {
         let item = PortalItem(url: offlineMapInfo.portalItemURL)!
         let onlineMap = Map(item: item)
         _mapViewModel = StateObject(wrappedValue: OfflineManager.shared.model(for: onlineMap))
         self.onlineMap = onlineMap
         _selectedMap = selection
+        self.isOfflineAuthenticated = isOfflineAuthenticated
     }
     
     /// Specifies the visibility of the done button.
@@ -175,7 +178,7 @@ public struct OfflineMapAreasView: View {
             #endif
             .interactiveDismissDisabled()
             .task {
-                await mapViewModel.loadModels()
+                await mapViewModel.loadModels(isOfflineAuthenticated: isOfflineAuthenticated ?? false)
             }
             // Note: the sheet has to be here rather than off of the `onDemandMapAreasView`
             // or else the state is lost when backgrounding and foregrounding the application.
@@ -222,9 +225,7 @@ public struct OfflineMapAreasView: View {
                             )
                         }
                     } footer: {
-                        if mapViewModel.isShowingOnlyOfflineModels {
-                            // If we are showing some models, but only offline models,
-                            // show that information in a footer.
+                        if mapViewModel.isShowingOnlyOfflineModels && isOfflineAuthenticated != true {
                             noInternetFooter
                         }
                     }
