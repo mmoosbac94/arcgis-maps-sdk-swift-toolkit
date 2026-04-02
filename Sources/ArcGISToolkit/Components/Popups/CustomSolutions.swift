@@ -9,6 +9,12 @@ import Foundation
 import SwiftUI
 
 
+@MainActor
+public enum ToolkitEnvironment {
+    public static var mailScheme: String?
+}
+
+@MainActor
 struct PopupValueDetector {
     
     enum DetectedValue {
@@ -33,9 +39,16 @@ struct PopupValueDetector {
         let matches = detector.matches(in: text, options: [], range: range)
         
         let links: [(URL, NSRange)] = matches.compactMap { match in
-            
             /// http(s) or mailto
             if let url = match.url {
+                if url.scheme == "mailto", ToolkitEnvironment.mailScheme == "medto" {
+                    let replaced = url.absoluteString.replacingOccurrences(
+                        of: "mailto:",
+                        with: "medto:"
+                    )
+                    return URL(string: replaced).map { ($0, match.range) }
+                }
+                
                 return (url, match.range)
             }
             
@@ -96,4 +109,3 @@ enum Pasteboard {
 #endif
     }
 }
-
