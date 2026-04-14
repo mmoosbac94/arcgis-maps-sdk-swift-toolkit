@@ -88,6 +88,9 @@ public class OfflineManager: ObservableObject {
     /// The available offline map view models.
     private var models: [Item.ID: OfflineMapViewModel] = [:]
     
+    @Published public private(set) var hasAvailablePreplannedUpdates = false
+    @Published public private(set) var portalItemIDsWithAvailableUpdates: Set<Item.ID> = []
+    
     private init() {
         Logger.offlineManager.debug("Initializing OfflineManager")
         
@@ -104,6 +107,35 @@ public class OfflineManager: ObservableObject {
             .count
         Logger.offlineManager.debug("Resuming all paused jobs (\(count)).")
         jobManager.resumeAllPausedJobs()
+    }
+    
+    public func hasAvailableUpdate(for portalItemID: Item.ID?) -> Bool {
+        guard let portalItemID else { return false }
+        return portalItemIDsWithAvailableUpdates.contains(portalItemID)
+    }
+    
+    public func refreshPreplannedUpdateStatus(isOfflineAuthenticated: Bool = false) async {
+        var portalIDsWithUpdates: Set<Item.ID> = []
+        
+        for info in offlineMapInfos {
+            let mapModel = model(for: info)
+            await mapModel.loadModels(isOfflineAuthenticated: isOfflineAuthenticated)
+            
+            if case .success(let preplannedModels) = mapModel.preplannedMapModels {
+                for preplannedModel in preplannedModels {
+                    await preplannedModel.load()
+                    
+                    guard preplannedModel.status.isDownloaded else { continue }
+                    
+                    if preplannedModel.needsUpdate {
+                        portalIDsWithUpdates.insert(info.id)
+                    }
+                }
+            }
+        }
+        
+        portalItemIDsWithAvailableUpdates = portalIDsWithUpdates
+        hasAvailablePreplannedUpdates = !portalIDsWithUpdates.isEmpty
     }
     
     /// Starts a job that will be managed by this instance.

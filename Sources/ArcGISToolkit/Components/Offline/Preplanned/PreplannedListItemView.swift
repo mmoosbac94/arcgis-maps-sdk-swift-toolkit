@@ -72,6 +72,7 @@ struct PreplannedListItemView: View {
         var description: String { "This is the description text" }
         var thumbnail: LoadableImage? { nil }
         var supportsRedownloading: Bool { true }
+        var modificationDate: Date? { nil }
         
         func retryLoad() async throws { }
         func makeParameters(using offlineMapTask: OfflineMapTask) async throws -> DownloadPreplannedOfflineMapParameters {

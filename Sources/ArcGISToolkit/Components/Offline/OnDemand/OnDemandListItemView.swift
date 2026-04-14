@@ -79,6 +79,8 @@ extension OnDemandMapModel: OfflineMapAreaMetadata {
 }
 
 extension OnDemandMapModel: OfflineMapAreaListItemInfo {
+    var needsUpdate: Bool { false }
+    
     var listItemDescription: String {
         switch status {
         case .downloaded:

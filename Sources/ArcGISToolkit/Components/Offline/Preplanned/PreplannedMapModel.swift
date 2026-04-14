@@ -48,6 +48,10 @@ class PreplannedMapModel: ObservableObject, Identifiable {
     /// The currently running download job.
     @Published private(set) var job: DownloadPreplannedOfflineMapJob?
     
+    @Published private(set) var needsUpdate: Bool = false
+    private var lastDownloadDate: Date?
+    private var remoteModifiedDate: Date?
+    
     /// The combined status of the preplanned map area.
     @Published private(set) var status: Status = .notLoaded {
         willSet {
@@ -58,6 +62,25 @@ class PreplannedMapModel: ObservableObject, Identifiable {
     
     /// The first map from the mobile map package.
     @Published private(set) var map: Map?
+    
+    private func computeNeedsUpdate() {
+        guard let lastDownloadDate,
+              let remoteModifiedDate else {
+            needsUpdate = false
+            return
+        }
+        
+        needsUpdate = remoteModifiedDate > lastDownloadDate
+        print("Needs Update: \(needsUpdate)")
+    }
+    
+    private func loadStoredDownloadDate() -> Date? {
+        UserDefaults.standard.object(forKey: "offline.downloadDate.\(preplannedMapAreaID.rawValue)") as? Date
+    }
+    
+    private func saveDownloadDate(_ date: Date) {
+        UserDefaults.standard.set(date, forKey: "offline.downloadDate.\(preplannedMapAreaID.rawValue)")
+    }
     
     init(
         offlineMapTask: OfflineMapTask,
@@ -78,6 +101,16 @@ class PreplannedMapModel: ObservableObject, Identifiable {
         )
     }
     
+    private func updateMetadataSnapshot() async {
+        remoteModifiedDate = preplannedMapArea.modificationDate
+        print("PreplannedMapArea title: \(preplannedMapArea.title)")
+        print("PreplannedMapArea description: \(preplannedMapArea.description)")
+        lastDownloadDate = loadStoredDownloadDate()
+        print("Remote modified date: \(remoteModifiedDate)")
+        print("Last download Local: \(lastDownloadDate)")
+        computeNeedsUpdate()
+    }
+    
     /// Depending on the state, this either:
     /// - observes an in-flight job
     /// - looks up the mobile map package if it exists on disk
@@ -95,6 +128,7 @@ class PreplannedMapModel: ObservableObject, Identifiable {
         } else {
             Logger.offlineManager.debug("Already loaded for preplanned map area \(self.preplannedMapAreaID.rawValue)")
         }
+        await updateMetadataSnapshot()
     }
     
     /// Loads the preplanned map area.
@@ -186,6 +220,13 @@ class PreplannedMapModel: ObservableObject, Identifiable {
     func removeDownloadedArea() {
         try? FileManager.default.removeItem(at: mmpkDirectoryURL)
         
+        UserDefaults.standard.removeObject(
+            forKey: "offline.downloadDate.\(preplannedMapAreaID.rawValue)"
+        )
+        
+        lastDownloadDate = nil
+        needsUpdate = false
+        
         // Reload the model after local files removal.
         status = .notLoaded
         Task { await load() }
@@ -203,7 +244,7 @@ class PreplannedMapModel: ObservableObject, Identifiable {
         Task { [weak self, job] in
             let result = await job.result
             guard let self else { return }
-            self.updateDownloadStatus(for: result)
+            await self.updateDownloadStatus(for: result)
             if let mmpk = try? result.get().mobileMapPackage {
                 await loadAndUpdateMobileMapPackage(mmpk: mmpk)
             }
@@ -212,10 +253,14 @@ class PreplannedMapModel: ObservableObject, Identifiable {
     }
     
     /// Updates the status based on the download result of the mobile map package.
-    private func updateDownloadStatus(for downloadResult: Result<DownloadPreplannedOfflineMapResult, any Error>) {
+    private func updateDownloadStatus(for downloadResult: Result<DownloadPreplannedOfflineMapResult, any Error>) async {
         switch downloadResult {
         case .success:
             status = .downloaded
+            let date = Date()
+            lastDownloadDate = date
+            saveDownloadDate(date)
+            await updateMetadataSnapshot()
         case .failure(let error):
             if error is CancellationError {
                 // Reset status to packaged if the job was cancelled.
@@ -329,6 +374,7 @@ protocol PreplannedMapAreaProtocol: Sendable {
     var thumbnail: LoadableImage? { get }
     /// A Boolean value indicating if this preplanned map area can be re-downloaded.
     var supportsRedownloading: Bool { get }
+    var modificationDate: Date? { get }
 }
 
 /// Extend `PreplannedMapArea` to conform to `PreplannedMapAreaProtocol`.
@@ -358,6 +404,10 @@ extension PreplannedMapArea: PreplannedMapAreaProtocol {
     }
     
     var supportsRedownloading: Bool { true }
+    
+    var modificationDate: Date? {
+        portalItem.modificationDate
+    }
 }
 
 /// A value that contains the result of loading the preplanned map models for
@@ -473,7 +523,8 @@ extension PreplannedMapModel {
             title: item.title,
             description: item.description,
             id: preplannedMapAreaID,
-            thumbnail: item.thumbnail
+            thumbnail: item.thumbnail,
+            modificationDate: item.modificationDate
         )
     }
 }
@@ -485,6 +536,7 @@ private struct OfflinePreplannedMapArea: PreplannedMapAreaProtocol {
     var packagingStatus: PreplannedMapArea.PackagingStatus?
     var thumbnail: LoadableImage?
     var supportsRedownloading: Bool { false }
+    let modificationDate: Date?
     
     func retryLoad() async throws {}
     

@@ -75,19 +75,32 @@ struct OfflineMapAreaListItemView<Model: OfflineMapAreaListItemInfo, TrailingCon
     }
     
     @ViewBuilder private var thumbnailView: some View {
-        if let thumbnail = thumbnailImage {
-            Image(uiImage: thumbnail)
-                .resizable()
-                .aspectRatio(contentMode: .fill)
-                .frame(width: thumbnailSize, height: thumbnailSize)
-                .clipShape(.rect(cornerRadius: 10))
-        } else {
-            Image(systemName: "map")
-                .imageScale(.large)
-                .foregroundStyle(.secondary)
-                .frame(width: thumbnailSize, height: thumbnailSize)
-                .background(Color(uiColor: UIColor.systemGroupedBackground))
-                .clipShape(.rect(cornerRadius: 10))
+        Group {
+            if let thumbnail = thumbnailImage {
+                Image(uiImage: thumbnail)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: thumbnailSize, height: thumbnailSize)
+                    .clipShape(.rect(cornerRadius: 10))
+            } else {
+                Image(systemName: "map")
+                    .imageScale(.large)
+                    .foregroundStyle(.secondary)
+                    .frame(width: thumbnailSize, height: thumbnailSize)
+                    .background(Color(uiColor: UIColor.systemGroupedBackground))
+                    .clipShape(.rect(cornerRadius: 10))
+            }
+        }.overlay(alignment: .topTrailing) {
+            if model.needsUpdate {
+                ZStack {
+                    Circle()
+                        .fill(Color.blue)
+                        .frame(width: 12, height: 12)
+                    Circle()
+                        .stroke(Color.white, lineWidth: 2)
+                        .frame(width: 12, height: 12)
+                }.offset(CGSize(width: 3, height: -3))
+            }
         }
     }
     
@@ -135,6 +148,7 @@ protocol OfflineMapAreaListItemInfo: ObservableObject, OfflineMapAreaMetadata {
     var statusText: LocalizedStringResource { get }
     var statusSystemImage: String { get }
     var jobProgress: Progress? { get }
+    var needsUpdate: Bool { get }
     
     func cancelJob()
 }
@@ -163,6 +177,7 @@ private class MockMetadata: OfflineMapAreaListItemInfo {
     var jobProgress: Progress? { nil }
     var dismissMetadataViewOnDelete: Bool { false }
     var removeDownloadButtonText: LocalizedStringResource { .removeDownload }
+    var needsUpdate: Bool { true }
     
     func removeDownloadedArea() {}
     func startDownload() {}
